@@ -47,7 +47,12 @@ class TwoLayerNet(object):
         # weights and biases using the keys 'W1' and 'b1' and second layer weights #
         # and biases using the keys 'W2' and 'b2'.                                 #
         ############################################################################
-        pass
+        W1 = weight_scale * np.random.randn(input_dim,hidden_dim)
+        W2 = weight_scale * np.random.randn(hidden_dim,num_classes)
+        b1 = np.zeros(hidden_dim)
+        b2 = np.zeros(num_classes)
+        self.params = {'W1':W1, 'W2':W2, 'b1':b1, 'b2':b2}
+
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -77,7 +82,12 @@ class TwoLayerNet(object):
         # TODO: Implement the forward pass for the two-layer net, computing the    #
         # class scores for X and storing them in the scores variable.              #
         ############################################################################
-        pass
+        W1,W2,b1,b2 = self.params['W1'], self.params['W2'], self.params['b1'], self.params['b2']
+        h1, cache1 = affine_forward(X, W1, b1)
+        h1, cache15 = relu_forward(h1)
+        h2, cache2 = affine_forward(h1, W2, b2)
+        predict = np.argmax(h2, axis = 0)
+        scores = h2
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -96,7 +106,15 @@ class TwoLayerNet(object):
         # NOTE: To ensure that your implementation matches ours and you pass the   #
         # automated tests, make sure that your L2 regularization includes a factor #
         # of 0.5 to simplify the expression for the gradient.                      #
-        ############################################################################
+        loss, dh2 = softmax_loss(h2, y)
+        loss += 0.5 * self.reg * (np.sum(W1 ** 2) + np.sum(W2 ** 2))
+        dh1, dw2, db2 = affine_backward(dh2, cache2)
+        dh1 = relu_backward(dh1, h1)
+        dx, dw1, db1 = affine_backward(dh1, cache1)
+        dw2 += self.reg * W2
+        dw1 += self.reg * W1
+        grads['W1'], grads['W2'],grads['b1'],grads['b2'] = dw1,dw2,db1,db2
+        ########################################################################
         pass
         ############################################################################
         #                             END OF YOUR CODE                             #
