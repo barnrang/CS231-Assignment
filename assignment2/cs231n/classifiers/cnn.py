@@ -26,7 +26,7 @@ class ThreeLayerConvNet(object):
         Inputs:
         - input_dim: Tuple (C, H, W) giving size of input data
         - num_filters: Number of filters to use in the convolutional layer
-        - filter_size: Size of filters to use in the convolutional layer
+        - filter_size: Size of filters to use in the convolutional layer (F, C, HH, WW)
         - hidden_dim: Number of units to use in the fully-connected hidden layer
         - num_classes: Number of scores to produce from the final affine layer.
         - weight_scale: Scalar giving standard deviation for random initialization
@@ -37,7 +37,7 @@ class ThreeLayerConvNet(object):
         self.params = {}
         self.reg = reg
         self.dtype = dtype
-
+        C,H,W = input_dim
         ############################################################################
         # TODO: Initialize weights and biases for the three-layer convolutional    #
         # network. Weights should be initialized from a Gaussian with standard     #
@@ -48,7 +48,17 @@ class ThreeLayerConvNet(object):
         # hidden affine layer, and keys 'W3' and 'b3' for the weights and biases   #
         # of the output affine layer.                                              #
         ############################################################################
-        pass
+        W1 = weight_scale * np.random.randn(num_filters, C, filter_size, filter_size)
+        b1 = np.zeros(num_filters)
+        offset = 0
+        if filter_size % 2 == 0:
+            offset -= 1
+        W2 = weight_scale * np.random.randn(int((H+offset)*(W+offset)*num_filters/4),hidden_dim)
+        b2 = np.zeros(hidden_dim)
+        W3 = weight_scale * np.random.randn(hidden_dim, num_classes)
+        b3 = np.zeros(num_classes)
+        for key, var in zip(['W1','W2','W3','b1','b2','b3'],[W1,W2,W3,b1,b2,b3]):
+            self.params[key] = var
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -73,14 +83,19 @@ class ThreeLayerConvNet(object):
 
         # pass pool_param to the forward pass for the max-pooling layer
         pool_param = {'pool_height': 2, 'pool_width': 2, 'stride': 2}
-
+        caches = {}
         scores = None
         ############################################################################
         # TODO: Implement the forward pass for the three-layer convolutional net,  #
         # computing the class scores for X and storing them in the scores          #
         # variable.                                                                #
         ############################################################################
-        pass
+        h1, cache = conv_relu_pool_forward(X, self.params['W1'], self.params['b1'], conv_param, pool_param)
+        caches['conv'] = cache
+        h2, cache = affine_relu_forward(h1, self.params['W2'], self.params['b2'])
+        caches['affine1'] = cache
+        scores, cache = affine_forward(h2, self.params['W3'], self.params['b3'])
+        caches['affine2'] = cache
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -95,7 +110,12 @@ class ThreeLayerConvNet(object):
         # data loss using softmax, and make sure that grads[k] holds the gradients #
         # for self.params[k]. Don't forget to add L2 regularization!               #
         ############################################################################
-        pass
+        loss, dx = softmax_loss(scores, y)
+        dx, dW3, db3 = affine_backward(dx, caches['affine2'])
+        dx, dW2, db2 = affine_relu_backward(dx, caches['affine1'])
+        dx, dW1, db1 = conv_relu_pool_backward(dx, caches['conv'])
+        for key, var in zip(['W1','W2','W3','b1','b2','b3'],[dW1,dW2,dW3,db1,db2,db3]):
+            grads[key] = var
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
