@@ -38,7 +38,7 @@ SQUEEZENET_STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
 def preprocess_image(img):
     """Preprocess an image for squeezenet.
-    
+
     Subtracts the pixel mean and divides by the standard deviation.
     """
     return (img.astype(np.float32)/255.0 - SQUEEZENET_MEAN) / SQUEEZENET_STD
@@ -64,7 +64,7 @@ def image_from_url(url):
         with open(fname, 'wb') as ff:
             ff.write(f.read())
         img = imread(fname)
-        os.remove(fname)
+        #os.remove(fname)
         return img
     except urllib.error.URLError as e:
         print('URL Error: ', e.reason, url)
