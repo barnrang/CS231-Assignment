@@ -142,13 +142,22 @@ class CaptioningRNN(object):
         caches['aff1'] = cache
         x, cache = word_embedding_forward(captions_in,W_embed)
         caches['wef1'] = cache
-        h, cache = rnn_forward(x, h0, Wx, Wh, b)
-        caches['rnn'] = cache
+        h = None
+        if self.cell_type != 'lstm':
+            h, cache = rnn_forward(x, h0, Wx, Wh, b)
+            caches['rnn'] = cache
+        else:
+            h, cache = lstm_forward(x, h0, Wx, Wh, b)
+            caches['lstm'] = cache
         out, cache = temporal_affine_forward(h,W_vocab,b_vocab)
         caches['taff1'] = cache
         loss, dout = temporal_softmax_loss(out,captions_out,mask)
         dx, grads['W_vocab'], grads['b_vocab'] = temporal_affine_backward(dout,caches['taff1'])
-        dx, dh0, grads['Wx'], grads['Wh'], grads['b'] = rnn_backward(dx,caches['rnn'])
+        dh0 = None
+        if self.cell_type != 'lstm':
+            dx, dh0, grads['Wx'], grads['Wh'], grads['b'] = rnn_backward(dx,caches['rnn'])
+        else:
+            dx, dh0, grads['Wx'], grads['Wh'], grads['b'] = lstm_backward(dx, caches['lstm'])
         grads['W_embed'] = word_embedding_backward(dx, caches['wef1'])
         dx, grads['W_proj'], grads['b_proj'] = affine_backward(dh0, caches['aff1'])
         ############################################################################
@@ -215,11 +224,19 @@ class CaptioningRNN(object):
         init = self._start * np.ones(N)
         x = W_embed[init.astype('int')]
         h0 = affine_forward(features, W_proj, b_proj)[0]
-        for i in range(max_length):
-            h0 = rnn_step_forward(x, h0, Wx, Wh, b)[0]
-            out = affine_forward(h0, W_vocab, b_vocab)[0]
-            captions[:,i] = out.argmax(axis=1)
-            x = W_embed[captions[:,i]]
+        if self.cell_type != 'lstm':
+            for i in range(max_length):
+                h0 = rnn_step_forward(x, h0, Wx, Wh, b)[0]
+                out = affine_forward(h0, W_vocab, b_vocab)[0]
+                captions[:,i] = out.argmax(axis=1)
+                x = W_embed[captions[:,i]]
+        else:
+            c0 = np.zeros_like(h0)
+            for i in range(max_length):
+                h0, c0 = lstm_step_forward(x, h0, c0, Wx, Wh, b)[0:2]
+                out = affine_forward(h0, W_vocab, b_vocab)[0]
+                captions[:,i] = out.argmax(axis=1)
+                x = W_embed[captions[:,i]]
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
